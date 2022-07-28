@@ -1,0 +1,207 @@
+---
+title: "Monitoria 1 - Métodos Computacionais em Finanças"
+author: "Matheus Carrijo de Brito"
+date: "2022-20-07"
+output: 
+  prettydoc::html_pretty:
+    bibliography: biblio.bib
+    theme: cayman
+    hightlight: github
+    math: katex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Importing some packages 
+
+library(quantmod)
+library(quantreg)
+library(tidyquant)
+library(ggplot2)
+library(data.table)
+#library(fOptions)
+library(RQuantLib)
+library(fAssets)
+
+```
+
+## Introdução 
+
+### Processo estocastico de wiener 
+
+It is a specific case of a markovian stochastic process, also called a Brownian Movement. Let z be a RV that follows this process, then it is characterized by the followings properties: 
+
+1 - The change of the process $\Delta z$  in a small amount of time $\Delta t$ is given by: 
+
+$$
+\Delta z = \epsilon \sqrt{\Delta t} \hspace{2cm} \epsilon ~ N(0, 1)
+$$
+
+2 - The changes in z are independent for any interval of time 
+
+$$
+\Delta z_{t} \perp \!\!\! \perp \Delta z_{j} \hspace{2cm} \forall t,j, \quad t\neq j 
+$$
+For a long space of time the process Z is the sum of small pieces that are distributated as independent normal variables, which leads to z be normaly distributed 
+
+$$
+z(T) - Z(0) = \sum^{N}_{t = 1} \epsilon_{t}\sqrt{\Delta t} \sim N(0, T)
+$$
+#### Generalized Wiener process  
+
+In general we are interest a linear function of a wiener process given by: 
+
+$$
+\Delta x = \alpha  \Delta t + \beta  \Delta z  \hspace{2cm} \{\alpha, \beta\} \in \mathbb{R}
+$$
+The parameter $\alpha$ gives the drift variation in the process (taxa de deriva), the parameter $\beta$ is the noise in the process (taxa de variância). It is easy to note that the process is normaly distributed
+
+$$
+X(T) - X(0) \sim N(\alpha T, \beta^{2} T)
+$$
+
+#### Ito process  
+
+This process generalize the wiener process by allowing that the coefficients $\alpha, \beta$ be function of the underline variables $x, t$. Thus, the process is given by: 
+
+$$
+\Delta x = \alpha(x, t) \Delta t + \beta(x,t) \Delta z
+$$
+Example: The path of a stock is often modeled as a simple geometric browninan movement $\frac{\Delta S}{S} = \mu \Delta t + \sigma \epsilon \sqrt{\Delta t}$, thus we already now the distribution 
+
+$$
+\frac{\Delta S}{S} = \mu \Delta t + \sigma \epsilon \sqrt{\Delta t} \sim N(\mu \Delta t, \sigma^{2} \Delta t)
+$$
+
+# Let's simulate and analyse the model below
+
+First, let generate random numbers 
+
+```{r}
+set.seed(123)
+
+epsilons <- rnorm(252*4, mean = 0, sd = 1/252)
+
+# Setting some parameters and initial conditions 
+
+P_0 <- 100 
+mu = 0.10
+sigma = 0.25
+
+delta_t <- 1/252
+
+```
+
+
+### Process 1: 
+
+- $\Delta P_{t+1} = \mu \Delta t + \sigma N(0, \Delta t)$
+
+Is given by a browning motion with constant drift and noise. The simulation is reported below. 
+
+```{r}
+
+P <- c(P_0, rep(0, length = length(epsilons) -1))
+
+for(i in 1:(length(epsilons)-1)){P[i+1] <- P[i] +  mu * delta_t + epsilons[i] * sigma}
+
+ggplot() + 
+  geom_line(aes(x = 1:length(epsilons), y = P)) + 
+  scale_x_continuous(breaks = seq(1,1001,100)-1) +
+  labs(x = "Time", y = "Asset Price")
+
+```
+
+## Process 2 
+
+- $\Delta P_{t+1} = \mu P_{t} \Delta + \sigma P_{t} N(0, \Delta t)$
+
+This process is a geometric browning motion that is often used to model the stock price movements, since the variation is relative to the initial point of the stock. 
+
+```{r}
+
+P_2 <- c(P_0, rep(0, length = length(epsilons)-1))
+
+for(i in 1:(length(epsilons) - 1)){P_2[i+1] <- P_2[i]*(1 + mu*delta_t + sigma*10*epsilons[i])}
+
+ggplot() +
+  geom_line(aes(x = seq_along(epsilons), y = P_2)) +
+  scale_x_continuous(breaks = seq(1,1000,100)-1) +
+  labs(x = "Time", y = "Asset Price")
+
+```
+
+## Process 3: 
+
+- $\Delta P_{t+1} = \mu(\bar{P} - P_{t}) \Delta t + \sigma P_{t} N(0, \Delta t)$
+
+This process is a geometric browning motion with normalized drift.
+
+```{r}
+
+P_3 <- c(P_0, rep(NA, length = length(epsilons)-1))
+
+for(i in 1:(length(epsilons) - 1)){P_3[i+1] <- P_3[i]+ mu*(mean(P_3, na.rm = T) - P_3[i])*delta_t + P_3[i]*sigma* epsilons[i+1]}
+
+ggplot() + 
+  geom_line(aes(x = seq_along(epsilons), y = P_3)) + 
+  scale_x_continuous(breaks = seq(1,1001,100)-1) +
+  labs(x = "Time", y = "Asset Pricing")
+
+```
+
+## Process 4: 
+
+- $\Delta P_{t+1} = \mu  P_{t} \Delta t + \sigma P_{t} N(\Delta P_{t}/P_{t-1}, \Delta t)$
+
+This process is crazy.  
+
+```{r}
+
+P_4 <- c(P_0, P_0, rep(NA, length(epsilons)-2))
+
+for(i in 1:(length(epsilons)-2)){
+  
+  P_4[i+2] <- P_4[i+1]*(1 + mu * delta_t + sigma*rnorm(n = 1, mean = (P_4[i+1]- P_4[i])/P_4[i], sd = delta_t))
+  
+}
+
+ggplot() + 
+  geom_line(aes(x = seq_along(epsilons), y =  P_4)) +
+  scale_x_continuous(breaks = seq(1,1001,100)-1) +
+  labs(x = "Time", y = "Asset Price")
+
+```
+
+## Process 5: 
+
+- $\Delta P_{t+1} = \mu( \bar{P} - P_{t}) \Delta t + \sigma P_{t} N_{1}(0, \Delta t) + \sigma_{j}Bern(p)P_{t} N_{2}(0, \Delta t)$ where, $N_{1}, N_{2}$ are independent and $Bern(p)$ is a bernoulli with probability $p$ at the interval $\Delta_{t}$
+
+This process is crazy with jumps 
+
+```{r}
+
+P_5 <- c(P_0, rep(NA, length(epsilons) - 1)) 
+
+for(i in seq_along(P_5)){
+  
+  P_5[i + 1] <- P_5[i] + mu*(mean(P_5, na.rm = T) - P_5[i]) * delta_t + 
+    P_5[i]*sigma*rnorm(n = 1, mean = 0, sd = delta_t) + 
+    sigma*rbinom(n = 1 , size = 1, prob = 0.5)*rnorm(n = 1, mean = 0, sd = delta_t)
+  
+}
+
+ggplot() + 
+  geom_line(aes(x = seq_along(P_5), y = P_5)) + 
+  scale_x_continuous(breaks = seq(1,1001,100)-1) + 
+  labs(x = "Time", y = "Asset Price")
+
+```
+
+
+
+
+
