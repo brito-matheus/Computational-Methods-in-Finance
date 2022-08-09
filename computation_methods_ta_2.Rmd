@@ -1,0 +1,35 @@
+---
+title: "computation_methods_ta_2"
+author: "Matheus Carrijo de Brito"
+date: "`r Sys.Date()`"
+output: 
+  prettydoc::html_pretty:
+    bibliography: biblio.bib
+    theme: cayman
+    hightlight: github
+    math: katex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Loading Packages
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Importing some packages 
+
+rm(list = ls())
+
+library(quantmod)
+library(quantreg)
+library(tidyquant)
+library(ggplot2)
+library(data.table)
+#library(fOptions)
+library(RQuantLib)
+library(fAssets)
+library(tidyverse)
+
+```
+

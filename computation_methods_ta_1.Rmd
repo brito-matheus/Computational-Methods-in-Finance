@@ -17,6 +17,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 # Importing some packages 
 
+rm(list = ls())
+
 library(quantmod)
 library(quantreg)
 library(tidyquant)
@@ -25,183 +27,408 @@ library(data.table)
 #library(fOptions)
 library(RQuantLib)
 library(fAssets)
+library(tidyverse)
 
 ```
 
-## Introdução 
+# Introdução
 
-### Processo estocastico de wiener 
+## Processo estocastico de wiener
 
-It is a specific case of a markovian stochastic process, also called a Brownian Movement. Let z be a RV that follows this process, then it is characterized by the followings properties: 
+It is a specific case of a markovian stochastic process, also called a Brownian Movement. Let z be a RV that follows this process, then it is characterized by the followings properties:
 
-1 - The change of the process $\Delta z$  in a small amount of time $\Delta t$ is given by: 
+1 - The change of the process $\Delta z$ in a small amount of time $\Delta t$ is given by:
 
 $$
 \Delta z = \epsilon \sqrt{\Delta t} \hspace{2cm} \epsilon ~ N(0, 1)
 $$
 
-2 - The changes in z are independent for any interval of time 
+2 - The changes in z are independent for any interval of time
 
 $$
 \Delta z_{t} \perp \!\!\! \perp \Delta z_{j} \hspace{2cm} \forall t,j, \quad t\neq j 
-$$
-For a long space of time the process Z is the sum of small pieces that are distributated as independent normal variables, which leads to z be normaly distributed 
+$$ For a long space of time the process Z is the sum of small pieces that are distributated as independent normal variables, which leads to z be normaly distributed
 
 $$
 z(T) - Z(0) = \sum^{N}_{t = 1} \epsilon_{t}\sqrt{\Delta t} \sim N(0, T)
 $$
-#### Generalized Wiener process  
 
-In general we are interest a linear function of a wiener process given by: 
+## Generalized Wiener process
+
+In general we are interest a linear function of a wiener process given by:
 
 $$
 \Delta x = \alpha  \Delta t + \beta  \Delta z  \hspace{2cm} \{\alpha, \beta\} \in \mathbb{R}
-$$
-The parameter $\alpha$ gives the drift variation in the process (taxa de deriva), the parameter $\beta$ is the noise in the process (taxa de variância). It is easy to note that the process is normaly distributed
+$$ The parameter $\alpha$ gives the drift variation in the process (taxa de deriva), the parameter $\beta$ is the noise in the process (taxa de variância). It is easy to note that the process is normaly distributed
 
 $$
 X(T) - X(0) \sim N(\alpha T, \beta^{2} T)
 $$
 
-#### Ito process  
+## Ito process
 
-This process generalize the wiener process by allowing that the coefficients $\alpha, \beta$ be function of the underline variables $x, t$. Thus, the process is given by: 
+This process generalize the wiener process by allowing that the coefficients $\alpha, \beta$ be function of the underline variables $x, t$. Thus, the process is given by:
 
 $$
 \Delta x = \alpha(x, t) \Delta t + \beta(x,t) \Delta z
-$$
-Example: The path of a stock is often modeled as a simple geometric browninan movement $\frac{\Delta S}{S} = \mu \Delta t + \sigma \epsilon \sqrt{\Delta t}$, thus we already now the distribution 
+$$ Example: The path of a stock is often modeled as a simple geometric browninan movement $\frac{\Delta S}{S} = \mu \Delta t + \sigma \epsilon \sqrt{\Delta t}$, thus we already now the distribution
 
 $$
 \frac{\Delta S}{S} = \mu \Delta t + \sigma \epsilon \sqrt{\Delta t} \sim N(\mu \Delta t, \sigma^{2} \Delta t)
 $$
 
-# Let's simulate and analyse the model below
+## Let's simulate and analyse the model below
 
-First, let generate random numbers 
+First, let generate random numbers
 
 ```{r}
+# Repeat the same aleatory numbers 
+
 set.seed(123)
 
-epsilons <- rnorm(252*4, mean = 0, sd = 1/252)
+years <- 4
+
+epsilons <- rnorm(252*years, mean = 0, sd = 1/252)
 
 # Setting some parameters and initial conditions 
 
 P_0 <- 100 
 mu = 0.10
 sigma = 0.25
-
 delta_t <- 1/252
+
 
 ```
 
+# Process 1:
 
-### Process 1: 
+-   $\Delta P_{t+1} = \mu \Delta t + \sigma N(0, \Delta t)$
 
-- $\Delta P_{t+1} = \mu \Delta t + \sigma N(0, \Delta t)$
+Is given by a browning motion with constant drift and noise. The simulation is reported below.
 
-Is given by a browning motion with constant drift and noise. The simulation is reported below. 
-
-```{r}
+```{r, fig.align="center"}
 
 P <- c(P_0, rep(0, length = length(epsilons) -1))
 
-for(i in 1:(length(epsilons)-1)){P[i+1] <- P[i] +  mu * delta_t + epsilons[i] * sigma}
+for(i in 1:(length(epsilons)-1)){
+  
+  P[i+1] <- P[i] +  mu * delta_t + epsilons[i] * sigma
+  
+}
+
+# Plotting the Asset Price 
 
 ggplot() + 
   geom_line(aes(x = 1:length(epsilons), y = P)) + 
   scale_x_continuous(breaks = seq(1,1001,100)-1) +
   labs(x = "Time", y = "Asset Price")
 
-```
 
-## Process 2 
+# let's make a distribution 
 
-- $\Delta P_{t+1} = \mu P_{t} \Delta + \sigma P_{t} N(0, \Delta t)$
+P_0 = 100
+mu = 0.1
+sigma = 0.25
+delta_t = 1/252
+n_simulation = 1000
+lenght_asset = 1000
 
-This process is a geometric browning motion that is often used to model the stock price movements, since the variation is relative to the initial point of the stock. 
 
-```{r}
-
-P_2 <- c(P_0, rep(0, length = length(epsilons)-1))
-
-for(i in 1:(length(epsilons) - 1)){P_2[i+1] <- P_2[i]*(1 + mu*delta_t + sigma*10*epsilons[i])}
-
-ggplot() +
-  geom_line(aes(x = seq_along(epsilons), y = P_2)) +
-  scale_x_continuous(breaks = seq(1,1000,100)-1) +
-  labs(x = "Time", y = "Asset Price")
 
 ```
 
-## Process 3: 
+### Making the simulation function
 
-- $\Delta P_{t+1} = \mu(\bar{P} - P_{t}) \Delta t + \sigma P_{t} N(0, \Delta t)$
-
-This process is a geometric browning motion with normalized drift.
-
-```{r}
-
-P_3 <- c(P_0, rep(NA, length = length(epsilons)-1))
-
-for(i in 1:(length(epsilons) - 1)){P_3[i+1] <- P_3[i]+ mu*(mean(P_3, na.rm = T) - P_3[i])*delta_t + P_3[i]*sigma* epsilons[i+1]}
-
-ggplot() + 
-  geom_line(aes(x = seq_along(epsilons), y = P_3)) + 
-  scale_x_continuous(breaks = seq(1,1001,100)-1) +
-  labs(x = "Time", y = "Asset Pricing")
-
-```
-
-## Process 4: 
-
-- $\Delta P_{t+1} = \mu  P_{t} \Delta t + \sigma P_{t} N(\Delta P_{t}/P_{t-1}, \Delta t)$
-
-This process is crazy.  
-
-```{r}
-
-P_4 <- c(P_0, P_0, rep(NA, length(epsilons)-2))
-
-for(i in 1:(length(epsilons)-2)){
+```{r, warning=F}
+simulations <- function(P_0 = 100, mu = 0.1, 
+                        sigma = 0.25, delta_t = 1/252,
+                        n_simulation = 1000, lenght_asset = 1000){
   
-  P_4[i+2] <- P_4[i+1]*(1 + mu * delta_t + sigma*rnorm(n = 1, mean = (P_4[i+1]- P_4[i])/P_4[i], sd = delta_t))
+  # Creating a matrix to save the simulations  
+  sim_vector <- matrix(0, nrow = lenght_asset, ncol = n_simulation)
+  
+  for(j in seq_len(n_simulation)){
+    
+    # Create an empty vector to simulate the asset price path 
+    P <- c(P_0, rep(0, length = length(lenght_asset)-1))
+    
+    # Draw the shock 
+    epsilons <- rnorm(n_simulation, mean = 0, sd = delta_t)
+    
+    # Make a simulation  
+    for(i in 1:(n_simulation)){
+    
+    P[i+1] <- P[i] +  mu * delta_t + rnorm(n = 1, mean = 0, sd = delta_t) * sigma
+    
+    # Save the results 
+    sim_vector[i, j] <- P[i]
+    
+    }
+    
+  }  
+  
+  # Returning the matrix
+  return(data.frame(sim_vector))
+}
+```
+
+## Making the simulation and plotting
+
+```{r, warning=F}
+sim <- simulations(P_0 = 100, mu = 0.1, 
+                   sigma = 0.25, delta_t = 1/252, 
+                   n_simulation = 1000, lenght_asset = 1000)
+
+
+# Plotting the first 50 simulations 
+sim[, 1:50] |> 
+  mutate(n = seq_len(1000)) |>
+  melt(id.vars = "n", variables.name = "variable", value.name = "value") |>
+  group_by(variable) |> 
+  ggplot() + 
+  geom_line(aes(x = n, y = value, colour = variable)) + 
+  scale_color_grey() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5, face = "bold")) + 
+  labs(x = "Time", y = "Asser Price", title = "Simulations")
+
+
+# Making anothers simulation changing parameters 
+
+simulations(P_0 = 100, mu = 1, 
+                   sigma = 2,
+                   delta_t = 1/252, 
+                   n_simulation = 1000, 
+            lenght_asset = 1000) |> 
+  select(1:50) |> 
+  mutate(n = seq_len(1000)) |>
+  melt(id.vars = "n", variables.name = "variable", value.name = "value") |>
+  group_by(variable) |> 
+  ggplot() + 
+  geom_line(aes(x = n, y = value, colour = variable)) + 
+  scale_color_grey() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5, face = "bold")) + 
+  labs(x = "Time", y = "Asser Price", title = "Simulations")
+
+
+
+```
+
+# Process 2
+
+-   $\Delta P_{t+1} = \mu P_{t} \Delta t + \sigma P_{t} N(0, \Delta t)$
+
+This process is a geometric browning motion that is often used to model the stock price movements, since the variation is relative to the initial point of the stock.
+
+```{r , fig.align="center"}
+
+# Function that iterates the process 2
+
+process_2 <- function(p, n_path, mu, delta_t, sigma, p_0){
+
+  
+  p[[1]] <- p_0
+  
+  for(i in seq_len(n_path)){
+  
+  p[[i+1]] <- p[[i]]*(1 + mu*delta_t + sigma*10*rnorm(n =1, mean = 0, sd = delta_t))
+  
+  }
+  
+  return(p) 
   
 }
 
-ggplot() + 
-  geom_line(aes(x = seq_along(epsilons), y =  P_4)) +
-  scale_x_continuous(breaks = seq(1,1001,100)-1) +
-  labs(x = "Time", y = "Asset Price")
+# Create an empty list where the simulation will be stored
+n_path = 100
+n_sim = 100
+
+p <- vector(mode = "list", n_sim)
+
+# Another way to run n simulations  
+ 
+process_2_df <- do.call("rbind",  
+  lapply(p, function(x) process_2(p = x, n_path = n_path, mu = 0.1, delta_t = 1/252, sigma = 0.20, p_0 = 100))) |> 
+  as.data.frame() |> 
+  setNames(c("sim", seq_len(n_sim))) 
+
+
+# A simple way to plot the paths  
+matplot(process_2_df |> t(), type = "l", ylab= "Asset Price", xlab = "Time")
+
+# Plotting all simulations of the Asset Price path 
+process_2_df |> 
+  t() |>
+  data.frame() |>
+  mutate(n = 1:(n_sim+1)) |>
+  gather(-c("n"), key = "variable", value = "value") |>
+  mutate(value = as.numeric(value)) |> 
+  group_by(variable) |> 
+  ggplot() +
+  geom_line(aes(x = n, y = value, colour = variable)) +
+  theme(legend.position = "none") +
+  labs(x = "Time", y = "Asset Price") + 
+  scale_colour_grey()
 
 ```
 
-## Process 5: 
+### Process 3:
 
-- $\Delta P_{t+1} = \mu( \bar{P} - P_{t}) \Delta t + \sigma P_{t} N_{1}(0, \Delta t) + \sigma_{j}Bern(p)P_{t} N_{2}(0, \Delta t)$ where, $N_{1}, N_{2}$ are independent and $Bern(p)$ is a bernoulli with probability $p$ at the interval $\Delta_{t}$
+-   $\Delta P_{t+1} = \mu(\bar{P} - P_{t}) \Delta t + \sigma P_{t} N(0, \Delta t)$
 
-This process is crazy with jumps 
+This process is a geometric browning motion with normalized drift. Note that for a price level higher than $\bar{P}$ the drift becomes negative and the process start to converge to the mean. The inverse happens when $P_{t} > \bar{P}$. This process may not be acceptable to model stock prices, since its expected an positive growth. But it may be adequate to model interest rate since its a stationary variable.  
 
-```{r}
+```{r, fig.align="center"}
 
-P_5 <- c(P_0, rep(NA, length(epsilons) - 1)) 
-
-for(i in seq_along(P_5)){
+process_3 <- function(n_sim = 100, time_length = 100, p_0 = 100, 
+                      mu = 0.1, delta_t = 1/252, sigma= 0.2){
   
-  P_5[i + 1] <- P_5[i] + mu*(mean(P_5, na.rm = T) - P_5[i]) * delta_t + 
-    P_5[i]*sigma*rnorm(n = 1, mean = 0, sd = delta_t) + 
-    sigma*rbinom(n = 1 , size = 1, prob = 0.5)*rnorm(n = 1, mean = 0, sd = delta_t)
+  dt_process_3 <- matrix(NA, nrow = time_length, ncol = n_sim) 
+  
+  dt_process_3[1, ] <- p_0
+  
+  for(j in seq_len(n_sim)){
+  
+    for(i in seq_len(time_length-1)){
+      
+      dt_process_3[i+1, j] <- dt_process_3[i, j] + 
+        mu*(mean(dt_process_3[, j], na.rm = T) - dt_process_3[i, j])*delta_t + 
+        dt_process_3[i, j]*sigma*rnorm(n = 1, mean = 0, sd = delta_t)
+      
+    }
+    
+  }
+  
+  dt_process_3 <- data.frame(dt_process_3)
+  return(dt_process_3)
+}
+
+dt_3 <- process_3(n_sim = 100)
+
+
+# Plotting Asset Price Path 
+
+dt_3 |> 
+  mutate(sim = seq_len(100)) |> 
+  tidyr::gather(-c("sim"), key ="variable", value = "value") |>
+  group_by(variable) |> 
+  mutate(high = ifelse(sim == 50 & value > 100,1,0), 
+         high = max(high)) |>
+  group_by(variable, high) |>
+  ggplot() + 
+  geom_line(aes(x = sim, y = value, group = variable, colour = as.factor(high))) + 
+  labs(x = "Time", y = "Asset Pricing") + 
+  scale_colour_manual(values = c("grey", "black"), 
+                     labels = c("Below 100 in time 50", "Above 100 in time 50"),
+                     name = "Legend") + 
+  theme(legend.position = "bottom")
+
+
+```
+
+### Process 4:
+
+-   $\Delta P_{t+1} = \mu P_{t} \Delta t + \sigma P_{t} N(\Delta P_{t}/P_{t-1}, \Delta t)$
+
+This process have the same drift of a Geometric Brownian motion, the disturbance that is different. When returns are positive the shock becomes, on average, positive, implying in an increase in the asset price. 
+
+```{r, fig.align="center"}
+
+length_path <- 100  # Number of steps in asset price simulation 
+n_sim <- 100 # Number of Simulation 
+
+# Parameters of the simulations 
+
+mu <- 0.1
+delta_t <- 1/252
+sigma <- 0.4
+
+
+# Making the simulation 
+
+process_4 <- matrix(data = NA, nrow = length_path, ncol = n_sim)
+
+# Filling the first and second rows with initial Price P_0 
+
+process_4[1:2, ] <- P_0 
+
+for(j in seq_len(n_sim)){
+  
+  for(i in seq(from = 3, to = n_sim, by = 1)){
+    
+    process_4[i, j] <- process_4[i-1, j]*(1 + mu * delta_t + sigma*rnorm(n = 1, mean = (process_4[i-1]- process_4[i-2])/process_4[i-2], sd = delta_t))
+    
+  }
+}
+
+matplot(y = process_4, type = "l", xlab =  "Time", ylab = "Aset Price")
+
+# Plotting Asset Price path 
+
+process_4 |> 
+  data.frame() |> 
+  mutate(time = seq(from = 1, to = length_path, by = 1)) |>
+  gather(-c("time") , key = "simulation", value = "value") |>
+  ggplot() + 
+  geom_line(aes(x = time, y = value, colour = simulation)) +
+  theme(legend.position = "none") +
+  labs(x = "Time", y = "Asset Price") + 
+  scale_colour_grey()
+
+```
+
+### Process 5:
+
+-   $\Delta P_{t+1} = \mu( \bar{P} - P_{t}) \Delta t + \sigma P_{t} N_{1}(0, \Delta t) + \sigma_{j}Bern(p)P_{t} N_{2}(0, \Delta t)$ where, $N_{1}, N_{2}$ are independent and $Bern(p)$ is a Bernoulli with probability $p$ at the interval $\Delta_{t}$
+
+This process is crazy with jumps
+
+```{r, fig.align="center"}
+
+
+length_path <- 100  # Number of steps in asset price simulation 
+n_sim <- 100 # Number of Simulation 
+
+# Parameters of the simulations 
+
+mu <- 0.1
+delta_t <- 1/252
+sigma <- 0.4
+P_0 <- 100
+
+
+# Making the simulation 
+
+process_5 <- matrix(data = NA, nrow = length_path, ncol = n_sim)
+
+process_5[1, ] <- P_0
+
+# Making the simulation 
+
+for(j in seq_len(n_sim)){
+
+  for(i in seq(from = 2, to = length_path, by = 1)){
+    
+    process_5[i, j] <- process_5[i-1, j] + mu*(mean(process_5, na.rm = T) - process_5[i-1, j]) * delta_t + 
+      process_5[i-1, j]*sigma*rnorm(n = 1, mean = 0, sd = delta_t) + 
+      sigma*rbinom(n = 1 , size = 1, prob = 0.5)*rnorm(n = 1, mean = 0, sd = delta_t)
+    
+  }
   
 }
 
-ggplot() + 
-  geom_line(aes(x = seq_along(P_5), y = P_5)) + 
-  scale_x_continuous(breaks = seq(1,1001,100)-1) + 
-  labs(x = "Time", y = "Asset Price")
+
+# Plotting Asset Price path 
+
+process_5 |> 
+  data.frame() |> 
+  mutate(time = seq(from = 1, to = length_path, by = 1)) |>
+  gather(-c("time") , key = "simulation", value = "value") |>
+  ggplot() + 
+  geom_line(aes(x = time, y = value, colour = simulation)) +
+  theme(legend.position = "none") +
+  labs(x = "Time", y = "Asset Price") + 
+  scale_colour_grey()
 
 ```
-
-
-
-
-
