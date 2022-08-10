@@ -3,11 +3,14 @@ title: "computation_methods_ta_2"
 author: "Matheus Carrijo de Brito"
 date: "`r Sys.Date()`"
 output: 
-  prettydoc::html_pretty:
+  html_document:
+    toc: true
+    theme: paper
+    highlight: textmate
+    number_sections: true
+    df_print: paged
+    code_folding: hide # Option to add hide button in Rmarkdown
     bibliography: biblio.bib
-    theme: cayman
-    hightlight: github
-    math: katex
 ---
 
 ```{r setup, include=FALSE}
@@ -26,10 +29,224 @@ library(quantreg)
 library(tidyquant)
 library(ggplot2)
 library(data.table)
-#library(fOptions)
 library(RQuantLib)
 library(fAssets)
 library(tidyverse)
 
 ```
+
+
+# Expectation using Monte Carlo 
+
+## Let's assume that stock prices follows a GBM 
+
+$$
+\Delta P_{t+1} = \mu P_{t} \Delta t  + \sigma P_{t}N(0, \Delta t) \hspace{1cm} \text{with}\hspace{1cm} \mu = 0.1, \sigma = 0.5 
+$$
+## Making the simulations 
+
+#### Writing the simulation function 
+
+```{r}
+simulations <- function(P_0 = 100, mu = 0.1, 
+                        sigma = 0.5, delta_t = 1/252,
+                        n_simulation = 1000, lenght_asset_path = 252){
+  
+  # Creating a matrix to save the simulations  
+  matrix_simulation <- matrix(0, nrow = lenght_asset_path, ncol = n_simulation)
+  
+  # Setting the columns names 
+  
+  colnames(matrix_simulation) <- paste("sim", seq_len(n_simulation), sep = "_")
+  
+  # Filling the first row with inittial price
+  matrix_simulation[1, ] <- P_0
+  
+  # In each simulation we generate the asset price path 
+  # seg_len generates a sequence from 1, to n_simulation, by = 1
+  
+  for(j in seq_len(n_simulation)){
+
+    # Make a simulation  
+    # 2:(lenght_asset_path) is a sequence that start at the second row (time) and ends at the last row (time) 
+    for(i in 2:(lenght_asset_path)){
+    
+    matrix_simulation[i, j] <- matrix_simulation[i-1, j] *(1 +  mu * delta_t +  sigma * 10 * rnorm(n = 1, mean = 0, sd = delta_t))
+    
+    } # End of the asset price loop 
+    
+  } # End of the simulation loop 
+  
+  # Returning the matrix as data frame 
+  return(data.frame(matrix_simulation))
+}
+```
+
+#### making the simulations
+
+```{r cols.print = 100, rows.print = 10}
+
+sim_prices <- simulations(P_0 = 50, mu = 0.1, sigma = 0.25, delta_t = 1/252, n_simulation = 100,
+                          lenght_asset_path = 252)
+
+# Printing the first 10 rows and 5 columns 
+kableExtra::kable(x = sim_prices[1:10, 1:5], format = "html") |>
+  kableExtra::kable_styling()
+
+
+```
+
+Given that the price of the stock is R$ 50, answer the following questions:
+
+- What is the probability that the price of the stock will be above R$ 70 after one year?
+
+```{r}
+
+# sim_prices[252, ] Gives the values of the stock price after one year for all simulations 
+
+# sim_prices[252, ] > 70 compute the logical condition for each simulation the stock price is above 70 and return a logical condition 
+
+# Sum this logical vector returns all True condition 
+
+# Dividing by the number of columns gives the probability 
+ 
+sprintf("Probability: %s", sum(sim_prices[252, ] > 70)/ncol(sim_prices))
+
+```
+
+- What is the probability that the price of the stock will be above R$ 70 at some point in the next year?
+
+```{r}
+
+prob <- c()
+
+for(j in seq_along(sim_prices)){
+  
+  prob[j] <- sum(sim_prices[, j] > 70) >= 1
+  
+}
+
+
+sprintf("Probability:  %s", sum(prob)/ncol(sim_prices))
+
+# Visualization of the paths 
+
+sim_prices |> 
+  mutate(time = seq_len(nrow(sim_prices))) |>
+  gather(-c("time"), key = "simulation", value = "value") |> 
+  group_by(simulation) |> 
+  mutate(high = ifelse(value > 70, 1,0), 
+         high = max(high)) |> 
+  ungroup() |> 
+  ggplot() + 
+  geom_line(aes(x = time, y = value, colour = as.factor(high), group = simulation)) +
+  scale_color_manual(values = c("red", "blue"), name = "Legend", labels = c("UP", "Down")) + 
+  theme(legend.position = "bottom")
+
+```
+
+- What is the probability that the price of the stock will be above R\$ 70 after one year and that at some point during the year the price reached below R\$ 50?
+
+```{r}
+
+prob <- c()
+
+for(j in seq_along(sim_prices)){
+  
+  prob[j] <- sum(sim_prices[, j] < 50 & sim_prices[nrow(sim_prices), j] > 70) >= 1
+  
+}
+
+sprintf("Probability:  %s", sum(prob)/ncol(sim_prices))
+
+# Visualization of the paths that satisfies the conditions above 
+
+sim_prices |> 
+  mutate(time = seq_len(nrow(sim_prices))) |>
+  gather(-c("time"), key = "simulation", value = "value") |> 
+  group_by(simulation) |> 
+  mutate(high = ifelse(value < 50 & value[time == 252] > 70, 1,0), 
+         high = max(high)) |> 
+  ungroup() |> 
+  ggplot() + 
+  geom_line(aes(x = time, y = value, colour = factor(high), alpha = factor(high), group = simulation)) +
+  scale_color_manual(values = c("grey", "black"), name = "Legend", labels = c("Down", "UP")) +
+  scale_alpha_manual(values = c(0.5,1)) + 
+  theme(legend.position = "bottom")
+
+```
+
+Another advanced way 
+
+```{r}
+sprintf("Probability:  %s",  
+  apply(sim_prices, FUN = function(x) max(x >= 70), MARGIN =  2) |> sum()/ncol(sim_prices)
+)
+
+```
+
+- What is the probability that the price of the stock will be above R\$ 70 after one year if during the first six months the price was below R\$ 70?
+
+```{r}
+
+prob <- c()
+
+for(j in seq_along(sim_prices)){
+  
+  prob[j] <- (sum(sim_prices[1:151, j] < 70) == 151 & # If all price are bellow 70 the sum needs to be equal 151
+                sum(sim_prices[nrow(sim_prices), j > 70])) >= 1 
+  
+}
+
+sprintf("Probability:  %s", sum(prob)/ncol(sim_prices))
+
+
+# Visualization of the paths that satisfies the conditions above 
+
+sim_prices |> 
+  mutate(time = seq_len(nrow(sim_prices))) |>
+  gather(-c("time"), key = "simulation", value = "value") |> 
+  mutate(first_six_months = ifelse(time <= 151,1,0)) |> 
+  group_by(simulation) |> 
+  mutate(high = ifelse(first_six_months == 1 & value < 70 & value[time == 252] > 70, 1,0)) |> 
+  ggplot() + 
+  geom_line(aes(x = time, y = value, colour = as.factor(high), group = simulation)) +
+  scale_color_manual(values = c("red", "blue"), name = "Legend", labels = c("Down", "UP")) + 
+  theme(legend.position = "bottom")
+
+
+```
+
+- What is the probability that the price of the stock crosses three times the R\$ 70 threshold from below in one year?
+
+
+```{r}
+
+prob <- c()
+
+for(j in seq_along(sim_prices)){
+  
+  prob[j] <- sum(sim_prices[, j] > 70) >= 3
+  
+}
+
+sprintf("Probability:  %s", sum(prob)/ncol(sim_prices))
+
+
+# Visualization of the paths that satisfies the conditions above 
+
+sim_prices |> 
+  mutate(time = seq_len(nrow(sim_prices))) |>
+  gather(-c("time"), key = "simulation", value = "value") |> 
+  group_by(simulation) |> 
+  mutate(high = ifelse(sum(value > 70) >= 3, 1,0), 
+         high = max(high)) |> 
+  ggplot() + 
+  geom_line(aes(x = time, y = value, colour = as.factor(high), group = simulation)) +
+  scale_colour_manual(values = c("red", "blue"), name = "Legend", labels = c("Down", "UP")) + 
+  theme(legend.position = "bottom")
+
+
+```
+
 

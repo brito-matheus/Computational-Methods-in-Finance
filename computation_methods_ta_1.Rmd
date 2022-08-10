@@ -3,11 +3,15 @@ title: "Monitoria 1 - Métodos Computacionais em Finanças"
 author: "Matheus Carrijo de Brito"
 date: "2022-20-07"
 output: 
-  prettydoc::html_pretty:
+  html_document:
+    toc: true
+    theme: paper
+    highlight: textmate
+    number_sections: true
+    df_print: paged
+    code_folding: hide # Option to add hide button in Rmarkdown
     bibliography: biblio.bib
-    theme: cayman
-    hightlight: github
-    math: katex
+    
 ---
 
 ```{r setup, include=FALSE}
@@ -71,7 +75,8 @@ This process generalize the wiener process by allowing that the coefficients $\a
 
 $$
 \Delta x = \alpha(x, t) \Delta t + \beta(x,t) \Delta z
-$$ Example: The path of a stock is often modeled as a simple geometric browninan movement $\frac{\Delta S}{S} = \mu \Delta t + \sigma \epsilon \sqrt{\Delta t}$, thus we already now the distribution
+$$ Example: The path of a stock is often modeled as a simple geometric Brownian movement $\frac{\Delta S}{S} = \mu \Delta t + \sigma \epsilon \sqrt{\Delta t}$, thus we already now the distribution
+
 
 $$
 \frac{\Delta S}{S} = \mu \Delta t + \sigma \epsilon \sqrt{\Delta t} \sim N(\mu \Delta t, \sigma^{2} \Delta t)
@@ -140,6 +145,7 @@ lenght_asset = 1000
 ### Making the simulation function
 
 ```{r, warning=F}
+
 simulations <- function(P_0 = 100, mu = 0.1, 
                         sigma = 0.25, delta_t = 1/252,
                         n_simulation = 1000, lenght_asset = 1000){
@@ -307,7 +313,8 @@ process_3 <- function(n_sim = 100, time_length = 100, p_0 = 100,
 dt_3 <- process_3(n_sim = 100)
 
 
-# Plotting Asset Price Path 
+# Plotting Asset Price Path with an addition 
+# The path in black are those with value higher than 100 in the middle of time, those in grey are below 100. Counting the path in black gives the probability of the asset price being above 100. It is plot visualization of the exercise asked in tutorial 2. 
 
 dt_3 |> 
   mutate(sim = seq_len(100)) |> 
@@ -336,7 +343,7 @@ This process have the same drift of a Geometric Brownian motion, the disturbance
 ```{r, fig.align="center"}
 
 length_path <- 100  # Number of steps in asset price simulation 
-n_sim <- 100 # Number of Simulation 
+n_sim <- 100        # Number of Simulation 
 
 # Parameters of the simulations 
 
@@ -349,9 +356,13 @@ sigma <- 0.4
 
 process_4 <- matrix(data = NA, nrow = length_path, ncol = n_sim)
 
-# Filling the first and second rows with initial Price P_0 
-
+# Filling the first and second row with initial Price P_0 
 process_4[1:2, ] <- P_0 
+
+
+# Making the simulation 
+# J is the simulation 
+# i is time 
 
 for(j in seq_len(n_sim)){
   
@@ -388,23 +399,26 @@ This process is crazy with jumps
 
 
 length_path <- 100  # Number of steps in asset price simulation 
-n_sim <- 100 # Number of Simulation 
+n_sim <- 100        # Number of Simulation 
 
 # Parameters of the simulations 
 
-mu <- 0.1
-delta_t <- 1/252
-sigma <- 0.4
-P_0 <- 100
+mu <- 0.1         # Annual Expected Returns 
+delta_t <- 1/252  # Time fraction
+sigma <- 0.4      # Annual Volatility 
+P_0 <- 100        # Initial Price
 
 
 # Making the simulation 
 
 process_5 <- matrix(data = NA, nrow = length_path, ncol = n_sim)
 
+# Setting the first row of the matrix equal the initial price 
 process_5[1, ] <- P_0
 
 # Making the simulation 
+# J is the simulation 
+# i is time 
 
 for(j in seq_len(n_sim)){
 
@@ -418,6 +432,9 @@ for(j in seq_len(n_sim)){
   
 }
 
+# Simple way to plot the simulations
+
+matplot(process_5, type = "l", xlab = "Time", ylab = "Asset Price Simulation")
 
 # Plotting Asset Price path 
 
