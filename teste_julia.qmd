@@ -1,0 +1,33 @@
+---
+title: "Quarto Basics"
+author: "Matheus Carrijo de Brito"
+theme: cosmos
+format: html
+jupyter: julia_vs-1.8
+---
+
+# Teste em Julia 
+
+Plot function pair (x(u), y(u)). 
+See @fig-parametric for an example.
+
+```{julia}
+
+## Parametric Plots
+
+#| label: fig-parametric
+#| fig-cap: "Parametric Plots"
+
+using Plots 
+
+plot(sin, 
+     x->sin(2x), 
+     0, 
+     2π, 
+     leg=false, 
+     fill=(0,:lavender))
+
+
+```
+
+```
