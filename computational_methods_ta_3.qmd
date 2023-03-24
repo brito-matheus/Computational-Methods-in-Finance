@@ -1,0 +1,27 @@
+---
+title: "TA 3 - Simulation Methods in Finance"
+author: "Carrijo de Brito"
+date: "2023-23-03"
+format:
+    html:
+    code-fold: true
+    toc: true
+
+jupyter: python3
+---- 
+
+# Simulation Methods in finance 
+
+In this file you will find how to price an derivative asset using simulation methods.  
+
+
+```{python}
+
+import pandas as pd 
+import numpy as np
+import matplotlib.pyplot as plt 
+import polars as pl 
+
+```
+
+
